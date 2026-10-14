@@ -21,6 +21,6 @@ dependencies = [
 flactoalac = "main:main"
 
 [project.urls]
-Homepage = "https://github.com/yunusacar/FlacToAlac"
-Repository = "https://github.com/yunusacar/FlacToAlac.git"
-"Bug Tracker" = "https://github.com/yunusacar/FlacToAlac/issues"
+Homepage = "https://github.com/itsyunusacar/FlacToAlac"
+Repository = "https://github.com/itsyunusacar/FlacToAlac.git"
+"Bug Tracker" = "https://github.com/itsyunusacar/FlacToAlac/issues"
