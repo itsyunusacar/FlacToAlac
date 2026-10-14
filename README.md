@@ -1,11 +1,12 @@
 # 🎵 FlacToAlac
 
-> **Modern, Lossless FLAC to ALAC (Apple Lossless M4A) Audio Converter with Drag & Drop.**
+> **Modern, Bit-Perfect Lossless FLAC to ALAC (Apple Lossless M4A) Audio Converter with Drag & Drop.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python: 3.9+](https://img.shields.io/badge/Python-3.9%2B-brightgreen.svg)](https://python.org)
 [![Platform: macOS | Windows | Linux](https://img.shields.io/badge/Platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg)]()
 [![Code: Lossless](https://img.shields.io/badge/Audio-100%25%20Bit--Perfect%20Lossless-orange.svg)]()
+[![Build & Test](https://github.com/itsyunusacar/FlacToAlac/actions/workflows/tests.yml/badge.svg)](https://github.com/itsyunusacar/FlacToAlac/actions/workflows/tests.yml)
 
 <p align="center">
   <img src="assets/icon.png" width="140" alt="FlacToAlac Logo" />
@@ -13,68 +14,86 @@
 
 ---
 
-## 🇹🇷 Türkçe Açıklama
+## 📖 Overview
 
-**FlacToAlac**, FLAC müzik arşivinizi Apple ekosisteminde (Apple Music, iPhone, iPad, Mac, iPod) kayıpsız dinleyebilmeniz için **ALAC (.m4a)** formatına dönüştüren modern, hızlı ve açık kaynaklı bir masaüstü uygulamasıdır.
+**FlacToAlac** is a lightweight, modern desktop application designed to batch convert your FLAC music archive into **ALAC (Apple Lossless Audio Codec in `.m4a` container)** format. Converted tracks seamlessly sync across Apple devices (Apple Music, macOS, iOS, iPadOS, iPod) while maintaining **100% bit-perfect audio quality**.
 
-### ✨ Öne Çıkan Özellikler
-* **Pencere Geneli Sürükle ve Bırak (Drag & Drop):** Dosyaları veya tüm müzik klasörlerini pencerenin herhangi bir yerine bırakmanız yeterli (iç içe alt klasörleri otomatik tarar).
-* **%100 Bit-Perfect Kayıpsız Dönüşüm:** FLAC'tan ALAC'a geçerken ses kalitesinde en ufak bir kayıp veya yeniden sıkıştırma yaşanmaz.
-* **Albüm Kapağı & Metadata Koruması:** Şarkı adı, sanatçı, albüm, parça sırası ve gömülü yüksek çözünürlüklü albüm kapakları (`covr`) eksiksiz korunur.
-* **Özel Albüm Kapağı Seçimi:** Bilgisayarınızdan istediğiniz görseli (`.jpg`, `.png`, `.webp`) seçip veya sürükleyip tüm parçalara tek tıkla albüm kapağı olarak gömebilirsiniz.
-* **Hızlı Paralel Dönüştürme:** Çok çekirdekli (multi-thread) işlemci desteği, hız göstergesi (`X dosya/sn`) ve kalan süre (ETA) tahmini.
-* **Apple Music Entegrasyonu:** Dönüştürülen parçaları tek tıkla doğrudan macOS Apple Music kütüphanesine aktarma seçeneği.
-* **Zaten Dönüştürülmüşleri Atla (Skip Existing):** Hedef konumda zaten `.m4a` dosyası varsa zaman kaybetmeden atlar.
-* **Kuyruk Yönetimi & Hata İnceleme:** `Delete` tuşu veya sağ tık ile listeden şarkı çıkarma; olası hatalarda satıra çift tıklayarak detaylı FFmpeg logunu görüp kopyalama.
-* **Güvenli Orijinal Silme (Opsiyonel):** Dönüştürme %100 doğrulanıp tamamlandığında orijinal FLAC'i otomatik silme seçeneği.
-* **Sıfır Kurulum Zahmeti:** Sistemde FFmpeg kurulu olmasa bile yerleşik motoruyla hemen çalışır.
+---
 
-### 🚀 Hızlı Başlangıç (macOS)
-Terminali açıp proje klasöründe şu komutu çalıştırmanız yeterlidir:
+## ✨ Features
+
+- **Window-Wide Drag & Drop:** Drop audio files or nested folders anywhere on the application window to automatically queue FLAC files.
+- **100% Lossless Bit-Perfect Conversion:** Direct transcode from FLAC to ALAC using native FFmpeg audio frames without resampling or acoustic loss.
+- **Full Metadata & Tag Preservation:** Automatically transfers Title, Artist, Album, Year, Track/Disc numbers, Genre, and embedded tags.
+- **Custom Album Artwork Selection:** Easily choose or drag & drop custom cover art (`.jpg`, `.png`, `.webp`) to embed across your files.
+- **macOS Apple Music Integration:** Optionally imports converted `.m4a` files directly into your Apple Music library upon completion.
+- **Multi-threaded Performance:** Configurable CPU worker threads with real-time conversion speed (`files/sec`) and Remaining Time (ETA) calculation.
+- **Smart Skip Existing:** Detects already-converted `.m4a` files in destination directories to prevent redundant processing.
+- **Queue Control & Error Log Viewer:** Select and remove tracks (`Delete`/`Backspace`), right-click context menu, and double-click to view complete FFmpeg diagnostic logs.
+- **Safe Source Deletion:** Optional toggle to delete source `.flac` files only after successful conversion and integrity verification.
+- **Zero Configuration:** Automatically locates system FFmpeg or falls back to bundled `imageio-ffmpeg` without manual setup.
+
+---
+
+## 🚀 Quick Start (macOS)
+
+Clone the repository and launch the application:
+
 ```bash
+git clone https://github.com/itsyunusacar/FlacToAlac.git
+cd FlacToAlac
+chmod +x run.sh
 ./run.sh
 ```
-*(Bu betik gereken ortamı otomatik hazırlar ve uygulamayı başlatır.)*
 
-Veya manuel olarak:
+*(The `run.sh` script automatically sets up the Python virtual environment, installs dependencies, and launches the app.)*
+
+### Manual Installation (macOS / Linux / Windows)
+
 ```bash
+# 1. Clone repository
+git clone https://github.com/itsyunusacar/FlacToAlac.git
+cd FlacToAlac
+
+# 2. Set up virtual environment
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# 3. Install dependencies
 pip install -r requirements.txt
+
+# 4. Launch application
 python3 main.py
 ```
 
-### 📦 Standalone macOS .app Paketleme
-Uygulamayı çift tıklanabilir bağımsız bir macOS `.app` haline getirmek için:
+---
+
+## 📦 Standalone macOS `.app` Bundle
+
+You can package the application into a standalone, double-clickable macOS `.app` bundle:
+
 ```bash
+chmod +x scripts/build_app.sh
 ./scripts/build_app.sh
 ```
-Derlenen uygulama `dist/FlacToAlac.app` dizininde hazır olacaktır.
+
+The compiled application will be generated in `dist/FlacToAlac.app`.
 
 ---
 
-## 🇬🇧 English Description
+## 🛠️ System Requirements
 
-**FlacToAlac** is a lightweight, high-performance desktop application designed to batch convert FLAC audio files into ALAC (Apple Lossless Audio Codec in `.m4a` container) with an intuitive drag-and-drop interface.
-
-### ✨ Key Features
-* **Window-Wide Drag & Drop:** Drop individual `.flac` files or entire album folders directly anywhere on the app.
-* **Zero Quality Loss:** Converts from FLAC to ALAC bit-for-bit losslessly.
-* **Full Metadata & Artwork Retention:** Preserves tags (Title, Artist, Album, Year, Track #) and embedded high-res cover art.
-* **Custom Album Artwork Selection:** Select or drag & drop any image (`.jpg`, `.png`, `.webp`) to embed as album artwork across all converted tracks.
-* **Multi-threaded Batch Processing:** Real-time speed (`files/sec`) and accurate Remaining Time (ETA) estimation.
-* **Apple Music Integration:** Automatically import converted tracks into your macOS Apple Music library.
-* **Skip Existing Files:** Skips tracks that have already been converted to save time on large libraries.
-* **Queue Management & Error Inspection:** Remove selected items using the `Delete` key or right-click context menu; double-click any error to inspect full FFmpeg logs.
-* **Safe Source Deletion (Optional):** Safely deletes source FLAC files only after destination files are verified.
-* **Zero Configuration:** Bundles an automated FFmpeg fallback so no manual toolchain setup is needed.
+- **Python:** 3.9, 3.10, 3.11, or 3.12
+- **FFmpeg:** Automatically discovered from system PATH, Homebrew (`/opt/homebrew/bin/ffmpeg`), or bundled fallback.
 
 ---
 
-## 🛠️ Requirements
+## 🧪 Running Tests
 
-* **Python:** 3.9 or higher
-* **FFmpeg:** Automatically detected from system PATH, Homebrew, or bundled `imageio-ffmpeg`.
+```bash
+source .venv/bin/activate
+QT_QPA_PLATFORM=offscreen python3 tests/test_converter.py
+```
 
 ---
 

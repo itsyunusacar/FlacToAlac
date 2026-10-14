@@ -46,7 +46,7 @@ def test_conversion_end_to_end():
         task_skip = ConversionTask(index=0, source_path=flac_path, dest_path=m4a_path, delete_source=False, skip_existing=True)
         skip_success, skip_msg = convert_single_file(task_skip, ffmpeg)
         assert skip_success is True
-        assert "Atlandı" in skip_msg
+        assert "Skipped" in skip_msg
 
         # 5. Test custom cover art embedding
         from PIL import Image

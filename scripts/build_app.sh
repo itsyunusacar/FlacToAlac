@@ -3,7 +3,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-echo "===> FlacToAlac macOS .app Derleme Aracı"
+echo "===> FlacToAlac macOS .app Builder"
 
 # Activate venv
 if [ -d ".venv" ]; then
@@ -12,17 +12,17 @@ fi
 
 # Ensure pyinstaller is installed
 if ! python3 -c "import PyInstaller" >/dev/null 2>&1; then
-    echo "===> PyInstaller kuruluyor..."
+    echo "===> Installing PyInstaller..."
     pip install pyinstaller
 fi
 
 # Ensure icon exists
 if [ ! -f "assets/icon.icns" ]; then
-    echo "===> Uygulama ikonu oluşturuluyor..."
+    echo "===> Generating application icon..."
     python3 scripts/generate_icon.py
 fi
 
-echo "===> PyInstaller ile macOS .app paketi oluşturuluyor..."
+echo "===> Bundling macOS .app package via PyInstaller..."
 pyinstaller \
     --name "FlacToAlac" \
     --windowed \
@@ -32,5 +32,5 @@ pyinstaller \
     --add-data "assets:assets" \
     main.py
 
-echo "===> Derleme Başarılı!"
-echo "Uygulama şurada hazır: $(pwd)/dist/FlacToAlac.app"
+echo "===> Build Succeeded!"
+echo "App is available at: $(pwd)/dist/FlacToAlac.app"

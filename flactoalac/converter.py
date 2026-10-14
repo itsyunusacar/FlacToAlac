@@ -26,14 +26,14 @@ def convert_single_file(
     Preserves all audio streams, metadata, and embedded cover art.
     """
     if is_cancelled_fn and is_cancelled_fn():
-        return False, "İşlem iptal edildi."
+        return False, "Operation cancelled."
 
     if not os.path.isfile(task.source_path):
-        return False, "Kaynak dosya bulunamadı."
+        return False, "Source file not found."
 
     # Skip existing if enabled
     if task.skip_existing and os.path.exists(task.dest_path) and os.path.getsize(task.dest_path) > 1024:
-        return True, "Zaten mevcut (Atlandı)."
+        return True, "Already exists (Skipped)."
 
     # Ensure destination directory exists
     os.makedirs(os.path.dirname(task.dest_path), exist_ok=True)
@@ -52,7 +52,7 @@ def convert_single_file(
             return proc.returncode, stderr
         except subprocess.TimeoutExpired:
             proc.kill()
-            return -1, "İşlem zaman aşımına uğradı (5 dk)."
+            return -1, "Operation timed out (5 min)."
         finally:
             if on_proc_ended:
                 on_proc_ended(proc)
@@ -79,7 +79,7 @@ def convert_single_file(
                 os.remove(task.dest_path)
             except OSError:
                 pass
-        return False, "Kullanıcı tarafından iptal edildi."
+        return False, "Cancelled by user."
 
     # Fallback attempt if stream mapping failed
     if ret_code != 0:
@@ -100,15 +100,15 @@ def convert_single_file(
                 os.remove(task.dest_path)
             except OSError:
                 pass
-        return False, "Kullanıcı tarafından iptal edildi."
+        return False, "Cancelled by user."
 
     if ret_code != 0:
-        err_msg = stderr.strip() if stderr else "Bilinmeyen FFmpeg hatası."
-        return False, f"FFmpeg Hatası:\n{err_msg}"
+        err_msg = stderr.strip() if stderr else "Unknown FFmpeg error."
+        return False, f"FFmpeg Error:\n{err_msg}"
 
     # Verify output file
     if not os.path.exists(task.dest_path) or os.path.getsize(task.dest_path) < 1024:
-        return False, "Çıktı dosyası geçersiz veya boş oluşturuldu."
+        return False, "Output file is invalid or empty."
 
     # Embed custom cover art if provided
     if task.custom_cover_path and os.path.isfile(task.custom_cover_path):
@@ -120,9 +120,9 @@ def convert_single_file(
         try:
             os.remove(task.source_path)
         except OSError as e:
-            return True, f"Tamamlandı (Orijinal silinemedi: {e})"
+            return True, f"Completed (Could not delete original: {e})"
 
-    return True, "Başarıyla dönüştürüldü."
+    return True, "Successfully converted."
 
 
 class BatchConverterWorker(QThread):
@@ -173,7 +173,7 @@ class BatchConverterWorker(QThread):
 
     def _run_single_task(self, task: ConversionTask) -> Tuple[int, bool, str, str]:
         if self._is_cancelled:
-            return task.index, False, "İptal edildi.", task.dest_path
+            return task.index, False, "Cancelled.", task.dest_path
 
         # Emit task_started only when the worker thread is ACTUALLY starting it
         self.task_started.emit(task.index)
@@ -230,12 +230,12 @@ class BatchConverterWorker(QThread):
                     if speed > 0 and remaining_items > 0:
                         eta_sec = remaining_items / speed
                         if eta_sec < 60:
-                            eta_str = f"Kalan: ~{eta_sec:.0f} sn"
+                            eta_str = f"ETA: ~{eta_sec:.0f}s"
                         else:
-                            eta_str = f"Kalan: ~{eta_sec / 60:.1f} dk"
-                        stats_str = f"{speed:.1f} dosya/sn • {eta_str}"
+                            eta_str = f"ETA: ~{eta_sec / 60:.1f}m"
+                        stats_str = f"{speed:.1f} files/s • {eta_str}"
                     else:
-                        stats_str = f"{speed:.1f} dosya/sn"
+                        stats_str = f"{speed:.1f} files/s"
                 else:
                     stats_str = ""
 

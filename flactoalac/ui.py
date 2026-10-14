@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QDialog, QTextEdit
 )
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QColor, QFont, QIcon, QKeyEvent, QAction, QGuiApplication
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QColor, QFont, QIcon, QKeyEvent, QAction, QGuiApplication, QPixmap
 
 from flactoalac.utils import (
     get_ffmpeg_path, format_size, scan_paths_for_flac, open_path_in_file_manager,
@@ -24,7 +24,7 @@ class ErrorDetailDialog(QDialog):
     """Dialog to display full FFmpeg error logs with copy-to-clipboard support."""
     def __init__(self, filename: str, error_msg: str, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(f"Hata Ayrıntısı - {filename}")
+        self.setWindowTitle(f"Error Details - {filename}")
         self.resize(600, 360)
         self.setStyleSheet("""
             QDialog {
@@ -57,7 +57,7 @@ class ErrorDetailDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        info_label = QLabel(f"<b>Dosya:</b> {filename}<br>Dönüştürme sırasında aşağıdaki hata oluştu:")
+        info_label = QLabel(f"<b>File:</b> {filename}<br>The following error occurred during conversion:")
         info_label.setStyleSheet("color: #E5E5E7; font-size: 13px;")
         layout.addWidget(info_label)
 
@@ -69,12 +69,12 @@ class ErrorDetailDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
-        copy_btn = QPushButton("Panoya Kopyala")
+        copy_btn = QPushButton("Copy to Clipboard")
         copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         copy_btn.clicked.connect(self.copy_to_clipboard)
         btn_layout.addWidget(copy_btn)
 
-        close_btn = QPushButton("Kapat")
+        close_btn = QPushButton("Close")
         close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
@@ -85,12 +85,12 @@ class ErrorDetailDialog(QDialog):
         clipboard = QGuiApplication.clipboard()
         if clipboard:
             clipboard.setText(self.text_box.toPlainText())
-            QMessageBox.information(self, "Kopyalandı", "Hata metni panoya kopyalandı.")
+            QMessageBox.information(self, "Copied", "Error text copied to clipboard.")
 
 
 class DropZoneWidget(QFrame):
     """
-    A modern drag-and-drop zone that accepts FLAC files and directories.
+    A modern drag-and-drop zone that accepts FLAC files, directories, and images.
     """
     def __init__(self, on_paths_dropped, on_browse_clicked):
         super().__init__()
@@ -104,14 +104,14 @@ class DropZoneWidget(QFrame):
         self.layout.setSpacing(8)
         self.layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Icon / Emoji Label
+        # Icon Label
         self.icon_label = QLabel("🎵")
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.icon_label.setStyleSheet("font-size: 36px; background: transparent;")
         self.layout.addWidget(self.icon_label)
 
         # Main Text
-        self.text_label = QLabel("FLAC Dosyalarını veya Klasörleri Buraya Sürükleyin")
+        self.text_label = QLabel("Drop FLAC Files or Folders Here")
         self.text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.text_label.setStyleSheet("font-size: 15px; font-weight: bold; color: #E5E5E7; background: transparent;")
         self.layout.addWidget(self.text_label)
@@ -121,7 +121,7 @@ class DropZoneWidget(QFrame):
         sub_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sub_layout.setSpacing(8)
 
-        self.browse_files_btn = QPushButton("Dosya Seç")
+        self.browse_files_btn = QPushButton("Browse Files")
         self.browse_files_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.browse_files_btn.clicked.connect(lambda: self.on_browse_clicked(folder=False))
         self.browse_files_btn.setStyleSheet("""
@@ -139,7 +139,7 @@ class DropZoneWidget(QFrame):
             }
         """)
 
-        self.browse_folders_btn = QPushButton("Klasör Seç")
+        self.browse_folders_btn = QPushButton("Browse Folder")
         self.browse_folders_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.browse_folders_btn.clicked.connect(lambda: self.on_browse_clicked(folder=True))
         self.browse_folders_btn.setStyleSheet(self.browse_files_btn.styleSheet())
@@ -217,9 +217,9 @@ class MainWindow(QMainWindow):
         if not self.ffmpeg_path:
             QMessageBox.critical(
                 self,
-                "FFmpeg Bulunamadı",
-                "Sisteminizde veya uygulama paketinde FFmpeg bulunamadı!\n"
-                "Lütfen FFmpeg'i kurun (örn: brew install ffmpeg)."
+                "FFmpeg Not Found",
+                "FFmpeg was not detected on your system or inside the application bundle!\n"
+                "Please install FFmpeg (e.g. brew install ffmpeg)."
             )
 
     def init_ui(self):
@@ -234,14 +234,14 @@ class MainWindow(QMainWindow):
         title_box = QVBoxLayout()
         title_label = QLabel("Flac to ALAC Converter")
         title_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF;")
-        subtitle_label = QLabel("Apple Lossless (ALAC / M4A) Dönüştürücü • Kayıpsız Ses & Kapak Görselleri")
+        subtitle_label = QLabel("Apple Lossless (ALAC / M4A) Audio Converter • Bit-Perfect & Preserves Artwork")
         subtitle_label.setStyleSheet("font-size: 13px; color: #8E8E93;")
         title_box.addWidget(title_label)
         title_box.addWidget(subtitle_label)
         header_layout.addLayout(title_box)
         header_layout.addStretch()
 
-        ffmpeg_status = QLabel("🟢 FFmpeg Aktif" if self.ffmpeg_path else "🔴 FFmpeg Eksik")
+        ffmpeg_status = QLabel("🟢 FFmpeg Ready" if self.ffmpeg_path else "🔴 FFmpeg Missing")
         ffmpeg_status.setStyleSheet("font-size: 12px; font-weight: 500; color: #98989D;")
         header_layout.addWidget(ffmpeg_status)
         main_layout.addLayout(header_layout)
@@ -255,7 +255,7 @@ class MainWindow(QMainWindow):
 
         # Table Widget
         self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["Dosya Adı", "Boyut", "Durum", "Hedef Yol"])
+        self.table.setHorizontalHeaderLabels(["File Name", "Size", "Status", "Destination Path"])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
@@ -288,20 +288,20 @@ class MainWindow(QMainWindow):
 
         # Destination Selection
         dest_layout = QHBoxLayout()
-        dest_label = QLabel("Kayıt Konumu:")
+        dest_label = QLabel("Destination:")
         dest_label.setStyleSheet("font-weight: bold; color: #E5E5E7; font-size: 13px;")
         dest_layout.addWidget(dest_label)
 
-        self.radio_same_dir = QRadioButton("Orijinal dosyanın yanına kaydet (.m4a)")
+        self.radio_same_dir = QRadioButton("Save alongside original file (.m4a)")
         self.radio_same_dir.setChecked(True)
         self.radio_same_dir.toggled.connect(self.update_dest_paths)
         dest_layout.addWidget(self.radio_same_dir)
 
-        self.radio_custom_dir = QRadioButton("Özel klasöre kaydet:")
+        self.radio_custom_dir = QRadioButton("Save to custom folder:")
         self.radio_custom_dir.toggled.connect(self.update_dest_paths)
         dest_layout.addWidget(self.radio_custom_dir)
 
-        self.custom_dest_btn = QPushButton("Klasör Seç...")
+        self.custom_dest_btn = QPushButton("Browse Folder...")
         self.custom_dest_btn.setEnabled(False)
         self.custom_dest_btn.clicked.connect(self.choose_custom_dest_dir)
         dest_layout.addWidget(self.custom_dest_btn)
@@ -331,15 +331,15 @@ class MainWindow(QMainWindow):
 
         cover_text_box = QVBoxLayout()
         cover_text_box.setSpacing(2)
-        self.cover_title_label = QLabel("Albüm Kapağı (Opsiyonel):")
+        self.cover_title_label = QLabel("Album Artwork (Optional):")
         self.cover_title_label.setStyleSheet("font-weight: bold; color: #E5E5E7; font-size: 13px;")
-        self.cover_desc_label = QLabel("Orijinal gömülü kapak korunur • Görsel seçebilir veya sürükleyebilirsiniz")
+        self.cover_desc_label = QLabel("Original embedded art is preserved • Choose or drop an image file here")
         self.cover_desc_label.setStyleSheet("color: #8E8E93; font-size: 11px;")
         cover_text_box.addWidget(self.cover_title_label)
         cover_text_box.addWidget(self.cover_desc_label)
         cover_layout.addLayout(cover_text_box)
 
-        self.choose_cover_btn = QPushButton("Kapak Seç...")
+        self.choose_cover_btn = QPushButton("Choose Image...")
         self.choose_cover_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.choose_cover_btn.clicked.connect(self.choose_custom_cover_file)
         self.choose_cover_btn.setStyleSheet("""
@@ -358,7 +358,7 @@ class MainWindow(QMainWindow):
         """)
         cover_layout.addWidget(self.choose_cover_btn)
 
-        self.remove_cover_btn = QPushButton("✕ Kaldır")
+        self.remove_cover_btn = QPushButton("✕ Remove")
         self.remove_cover_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.remove_cover_btn.setVisible(False)
         self.remove_cover_btn.clicked.connect(self.remove_custom_cover)
@@ -382,26 +382,26 @@ class MainWindow(QMainWindow):
         # Checkboxes row
         checks_layout = QHBoxLayout()
 
-        self.skip_existing_chk = QCheckBox("Zaten dönüştürülmüşleri atla")
+        self.skip_existing_chk = QCheckBox("Skip already converted files")
         self.skip_existing_chk.setChecked(True)
-        self.skip_existing_chk.setToolTip("Hedef konumda geçerli bir .m4a dosyası varsa tekrar dönüştürmez.")
+        self.skip_existing_chk.setToolTip("Skips tracks if a valid .m4a file already exists in the destination.")
         checks_layout.addWidget(self.skip_existing_chk)
 
         checks_layout.addSpacing(16)
-        self.delete_source_chk = QCheckBox("Orijinal FLAC dosyasını sil")
+        self.delete_source_chk = QCheckBox("Delete original FLAC files")
         self.delete_source_chk.setStyleSheet("color: #FF453A; font-weight: 500;")
-        self.delete_source_chk.setToolTip("Dönüştürme %100 başarılı olursa orijinal FLAC silinir.")
+        self.delete_source_chk.setToolTip("Original .flac files are deleted only after conversion is 100% verified.")
         checks_layout.addWidget(self.delete_source_chk)
 
         if sys.platform == "darwin":
             checks_layout.addSpacing(16)
-            self.apple_music_chk = QCheckBox("Apple Music'e aktar")
+            self.apple_music_chk = QCheckBox("Import to Apple Music")
             self.apple_music_chk.setChecked(False)
-            self.apple_music_chk.setToolTip("Dönüştürülen parçaları otomatik olarak Apple Music kütüphanenize ekler.")
+            self.apple_music_chk.setToolTip("Automatically adds converted ALAC tracks into your macOS Apple Music library.")
             checks_layout.addWidget(self.apple_music_chk)
 
         checks_layout.addSpacing(20)
-        workers_label = QLabel("Eşzamanlı İşlem:")
+        workers_label = QLabel("Concurrent Tasks:")
         workers_label.setStyleSheet("color: #E5E5E7; font-size: 13px;")
         checks_layout.addWidget(workers_label)
 
@@ -419,7 +419,7 @@ class MainWindow(QMainWindow):
         bottom_layout = QHBoxLayout()
         bottom_layout.setSpacing(10)
 
-        self.stats_label = QLabel("Liste boş")
+        self.stats_label = QLabel("List is empty")
         self.stats_label.setStyleSheet("color: #8E8E93; font-size: 13px;")
         bottom_layout.addWidget(self.stats_label)
 
@@ -443,10 +443,10 @@ class MainWindow(QMainWindow):
         """)
         bottom_layout.addWidget(self.progress_bar)
 
-        self.open_output_btn = QPushButton("📁 Klasörü Aç")
+        self.open_output_btn = QPushButton("📁 Open Folder")
         self.open_output_btn.clicked.connect(self.open_output_folder)
         self.open_output_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.open_output_btn.setToolTip("Çıktı klasörünü Finder'da açar.")
+        self.open_output_btn.setToolTip("Opens destination folder in Finder.")
         self.open_output_btn.setStyleSheet("""
             QPushButton {
                 background-color: #2C2C2E;
@@ -463,7 +463,7 @@ class MainWindow(QMainWindow):
         """)
         bottom_layout.addWidget(self.open_output_btn)
 
-        self.clear_btn = QPushButton("Listeyi Temizle")
+        self.clear_btn = QPushButton("Clear List")
         self.clear_btn.clicked.connect(self.clear_list)
         self.clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.clear_btn.setStyleSheet("""
@@ -482,7 +482,7 @@ class MainWindow(QMainWindow):
         """)
         bottom_layout.addWidget(self.clear_btn)
 
-        self.start_btn = QPushButton("Dönüştürmeyi Başlat")
+        self.start_btn = QPushButton("Start Conversion")
         self.start_btn.clicked.connect(self.toggle_conversion)
         self.start_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.start_btn.setStyleSheet("""
@@ -583,9 +583,9 @@ class MainWindow(QMainWindow):
     def choose_custom_cover_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Albüm Kapak Görselini Seçin",
+            "Select Album Artwork Image",
             "",
-            "Görsel Dosyaları (*.jpg *.jpeg *.png *.webp *.bmp)"
+            "Image Files (*.jpg *.jpeg *.png *.webp *.bmp)"
         )
         if file_path:
             self.set_custom_cover(file_path)
@@ -595,12 +595,11 @@ class MainWindow(QMainWindow):
             return
         self.custom_cover_path = image_path
         filename = os.path.basename(image_path)
-        self.cover_title_label.setText(f"Özel Kapak: {filename}")
-        self.cover_desc_label.setText("Tüm dönüştürülen parçalara bu kapak gömülecek")
+        self.cover_title_label.setText(f"Custom Artwork: {filename}")
+        self.cover_desc_label.setText("Will be embedded into all converted tracks")
         self.cover_desc_label.setStyleSheet("color: #30D158; font-size: 11px;")
         self.remove_cover_btn.setVisible(True)
 
-        from PyQt6.QtGui import QPixmap
         pixmap = QPixmap(image_path)
         if not pixmap.isNull():
             scaled = pixmap.scaled(
@@ -615,19 +614,19 @@ class MainWindow(QMainWindow):
     def remove_custom_cover(self):
         self.custom_cover_path = None
         self.cover_preview_label.setText("🖼️")
-        self.cover_title_label.setText("Albüm Kapağı (Opsiyonel):")
-        self.cover_desc_label.setText("Orijinal gömülü kapak korunur • Görsel seçebilir veya sürükleyebilirsiniz")
+        self.cover_title_label.setText("Album Artwork (Optional):")
+        self.cover_desc_label.setText("Original embedded art is preserved • Choose or drop an image file here")
         self.cover_desc_label.setStyleSheet("color: #8E8E93; font-size: 11px;")
         self.remove_cover_btn.setVisible(False)
 
     def browse_paths(self, folder: bool = False):
         if folder:
-            dir_path = QFileDialog.getExistingDirectory(self, "FLAC İçeren Klasörü Seçin")
+            dir_path = QFileDialog.getExistingDirectory(self, "Select Folder Containing FLAC Files")
             if dir_path:
                 self.add_paths([dir_path])
         else:
             files, _ = QFileDialog.getOpenFileNames(
-                self, "FLAC Dosyalarını Seçin", "", "FLAC Audio (*.flac *.FLAC)"
+                self, "Select FLAC Files", "", "FLAC Audio (*.flac *.FLAC)"
             )
             if files:
                 self.add_paths(files)
@@ -649,7 +648,7 @@ class MainWindow(QMainWindow):
         new_items = scan_paths_for_flac(audio_or_dirs)
         if not new_items:
             if not image_files:
-                QMessageBox.information(self, "Bilgi", "Seçilen konumda .flac dosyası bulunamadı.")
+                QMessageBox.information(self, "Information", "No .flac files found in the selected location.")
             return
 
         existing_paths = {item["path"] for item in self.file_items}
@@ -664,7 +663,7 @@ class MainWindow(QMainWindow):
         self.refresh_table()
 
     def choose_custom_dest_dir(self):
-        dir_path = QFileDialog.getExistingDirectory(self, "Çıktı Klasörünü Seçin")
+        dir_path = QFileDialog.getExistingDirectory(self, "Select Output Folder")
         if dir_path:
             self.custom_dest_directory = dir_path
             self.custom_dest_label.setText(os.path.basename(dir_path))
@@ -709,14 +708,14 @@ class MainWindow(QMainWindow):
             self.table.setItem(row, 1, size_item)
 
             # Status item
-            status_str = item.get("status_str", "Hazır")
+            status_str = item.get("status_str", "Ready")
             status_item = QTableWidgetItem(status_str)
             status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            if "Tamamlandı" in status_str:
+            if "Completed" in status_str or "Skipped" in status_str:
                 status_item.setForeground(QColor("#30D158"))
-            elif "Hata" in status_str:
+            elif "Error" in status_str:
                 status_item.setForeground(QColor("#FF453A"))
-            elif "Dönüştürülüyor" in status_str:
+            elif "Converting" in status_str:
                 status_item.setForeground(QColor("#0A84FF"))
             self.table.setItem(row, 2, status_item)
 
@@ -728,8 +727,8 @@ class MainWindow(QMainWindow):
             self.table.setItem(row, 3, dest_item)
 
         self.stats_label.setText(
-            f"Toplam {len(self.file_items)} dosya ({format_size(total_size)})"
-            if self.file_items else "Liste boş"
+            f"Total {len(self.file_items)} files ({format_size(total_size)})"
+            if self.file_items else "List is empty"
         )
 
     # --- Item Removal & Keyboard Events ---
@@ -741,7 +740,7 @@ class MainWindow(QMainWindow):
 
     def remove_selected_rows(self):
         if self.worker and self.worker.isRunning():
-            QMessageBox.warning(self, "Uyarı", "Dönüştürme sürerken listeden dosya silinemez.")
+            QMessageBox.warning(self, "Warning", "Cannot remove files while conversion is in progress.")
             return
 
         selected_rows = sorted(set(idx.row() for idx in self.table.selectedIndexes()), reverse=True)
@@ -759,7 +758,7 @@ class MainWindow(QMainWindow):
         item = self.table.itemAt(pos)
         menu = QMenu(self)
 
-        remove_action = QAction("🗑️ Seçilenleri Listeden Kaldır", self)
+        remove_action = QAction("🗑️ Remove Selected from List", self)
         remove_action.triggered.connect(self.remove_selected_rows)
         menu.addAction(remove_action)
 
@@ -769,22 +768,22 @@ class MainWindow(QMainWindow):
 
             menu.addSeparator()
             if file_data:
-                open_source_action = QAction("📂 Kaynak Dosyayı Finder'da Göster", self)
+                open_source_action = QAction("📂 Reveal Source File in Finder", self)
                 open_source_action.triggered.connect(lambda: open_path_in_file_manager(file_data["path"]))
                 menu.addAction(open_source_action)
 
                 if os.path.exists(file_data.get("dest_path", "")):
-                    open_dest_action = QAction("📁 Hedef (.m4a) Dosyasını Finder'da Göster", self)
+                    open_dest_action = QAction("📁 Reveal Converted (.m4a) in Finder", self)
                     open_dest_action.triggered.connect(lambda: open_path_in_file_manager(file_data["dest_path"]))
                     menu.addAction(open_dest_action)
 
                 if "error_details" in file_data:
-                    error_action = QAction("⚠️ Hata Ayrıntısını Gör", self)
+                    error_action = QAction("⚠️ View Error Details", self)
                     error_action.triggered.connect(lambda: self.show_error_dialog(file_data["filename"], file_data["error_details"]))
                     menu.addAction(error_action)
 
         menu.addSeparator()
-        clear_action = QAction("🧹 Listeyi Temizle", self)
+        clear_action = QAction("🧹 Clear List", self)
         clear_action.triggered.connect(self.clear_list)
         menu.addAction(clear_action)
 
@@ -805,12 +804,11 @@ class MainWindow(QMainWindow):
         dlg.exec()
 
     def open_output_folder(self):
-        """Opens output folder in Finder."""
+        """Opens destination folder in Finder."""
         if self.radio_custom_dir.isChecked() and self.custom_dest_directory and os.path.exists(self.custom_dest_directory):
             open_path_in_file_manager(self.custom_dest_directory)
             return
 
-        # Fallback to selected row's output or first file's output
         selected_rows = [idx.row() for idx in self.table.selectedIndexes()]
         target_row = selected_rows[0] if selected_rows else 0
 
@@ -821,17 +819,16 @@ class MainWindow(QMainWindow):
                 open_path_in_file_manager(target_dir)
                 return
 
-        # Fallback to user's music folder
         music_dir = os.path.expanduser("~/Music")
         open_path_in_file_manager(music_dir)
 
     def clear_list(self):
         if self.worker and self.worker.isRunning():
-            QMessageBox.warning(self, "Uyarı", "Dönüştürme işlemi sürerken liste temizlenemez.")
+            QMessageBox.warning(self, "Warning", "Cannot clear list while conversion is in progress.")
             return
         self.file_items.clear()
         self.table.setRowCount(0)
-        self.stats_label.setText("Liste boş")
+        self.stats_label.setText("List is empty")
         self.progress_bar.setVisible(False)
 
     def toggle_conversion(self):
@@ -839,19 +836,19 @@ class MainWindow(QMainWindow):
             # Cancel current run
             self.worker.cancel()
             self.start_btn.setEnabled(False)
-            self.start_btn.setText("İptal ediliyor...")
+            self.start_btn.setText("Cancelling...")
             return
 
         if not self.ffmpeg_path:
-            QMessageBox.critical(self, "Hata", "FFmpeg bulunamadığı için işlem başlatılamıyor.")
+            QMessageBox.critical(self, "Error", "FFmpeg was not found. Cannot start conversion.")
             return
 
         if not self.file_items:
-            QMessageBox.information(self, "Uyarı", "Lütfen önce FLAC dosyası ekleyin.")
+            QMessageBox.information(self, "Notice", "Please add FLAC files first.")
             return
 
         if self.radio_custom_dir.isChecked() and not self.custom_dest_directory:
-            QMessageBox.warning(self, "Klasör Seçilmedi", "Lütfen dönüştürülen dosyaların kaydedileceği klasörü seçin.")
+            QMessageBox.warning(self, "Notice", "Please select an output destination folder first.")
             return
 
         # Prepare tasks
@@ -869,10 +866,10 @@ class MainWindow(QMainWindow):
                 custom_cover_path=self.custom_cover_path
             )
             tasks.append(task)
-            item["status_str"] = "Kuyrukta..."
+            item["status_str"] = "Queued..."
             if "error_details" in item:
                 del item["error_details"]
-            self.table.item(index, 2).setText("Kuyrukta...")
+            self.table.item(index, 2).setText("Queued...")
             self.table.item(index, 2).setForeground(QColor("#8E8E93"))
 
         # Setup progress bar
@@ -881,7 +878,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.setVisible(True)
 
         # Switch button state
-        self.start_btn.setText("Dönüştürmeyi İptal Et")
+        self.start_btn.setText("Cancel Conversion")
         self.start_btn.setStyleSheet("""
             QPushButton {
                 background-color: #FF453A;
@@ -909,10 +906,10 @@ class MainWindow(QMainWindow):
 
     def on_task_started(self, index: int):
         if 0 <= index < len(self.file_items):
-            self.file_items[index]["status_str"] = "Dönüştürülüyor..."
+            self.file_items[index]["status_str"] = "Converting..."
             item = self.table.item(index, 2)
             if item:
-                item.setText("⏳ Dönüştürülüyor")
+                item.setText("⏳ Converting")
                 item.setForeground(QColor("#0A84FF"))
 
     def on_task_finished(self, index: int, success: bool, message: str):
@@ -923,15 +920,15 @@ class MainWindow(QMainWindow):
             return
 
         if success:
-            status_text = "✅ Atlandı" if "Atlandı" in message else "✅ Tamamlandı"
+            status_text = "✅ Skipped" if "Skipped" in message else "✅ Completed"
             self.file_items[index]["status_str"] = status_text
             item.setText(status_text)
             item.setForeground(QColor("#30D158"))
             item.setToolTip(message)
         else:
-            self.file_items[index]["status_str"] = "Hata"
+            self.file_items[index]["status_str"] = "Error"
             self.file_items[index]["error_details"] = message
-            item.setText("❌ Hata (Çift Tıkla)")
+            item.setText("❌ Error (Double-click)")
             item.setForeground(QColor("#FF453A"))
             item.setToolTip(message)
 
@@ -943,7 +940,7 @@ class MainWindow(QMainWindow):
             self.progress_bar.setFormat(f"%p% ({completed}/{total})")
 
     def on_all_finished(self, success_count: int, error_count: int, successful_paths: list = None):
-        self.start_btn.setText("Dönüştürmeyi Başlat")
+        self.start_btn.setText("Start Conversion")
         self.start_btn.setEnabled(True)
         self.start_btn.setStyleSheet("""
             QPushButton {
@@ -966,17 +963,17 @@ class MainWindow(QMainWindow):
             if add_to_apple_music(successful_paths):
                 added_music_count = len(successful_paths)
 
-        msg = f"Dönüştürme işlemi tamamlandı!\n\nBaşarılı: {success_count}\nHata: {error_count}"
+        msg = f"Batch conversion finished!\n\nSuccessful: {success_count}\nErrors: {error_count}"
         if added_music_count > 0:
-            msg += f"\n\n🎵 {added_music_count} parça Apple Music'e aktarıldı."
+            msg += f"\n\n🎵 {added_music_count} tracks imported into Apple Music."
 
         msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("İşlem Tamamlandı")
+        msg_box.setWindowTitle("Conversion Complete")
         msg_box.setText(msg)
         msg_box.setIcon(QMessageBox.Icon.Information if error_count == 0 else QMessageBox.Icon.Warning)
 
-        open_btn = msg_box.addButton("Klasörü Aç", QMessageBox.ButtonRole.ActionRole)
-        msg_box.addButton("Tamam", QMessageBox.ButtonRole.AcceptRole)
+        open_btn = msg_box.addButton("Open Folder", QMessageBox.ButtonRole.ActionRole)
+        msg_box.addButton("OK", QMessageBox.ButtonRole.AcceptRole)
 
         msg_box.exec()
         if msg_box.clickedButton() == open_btn:
