@@ -7,13 +7,84 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView,
     QProgressBar, QFileDialog, QCheckBox, QRadioButton, QButtonGroup,
-    QMessageBox, QFrame, QSpinBox, QAbstractItemView
+    QMessageBox, QFrame, QSpinBox, QAbstractItemView, QMenu,
+    QDialog, QTextEdit
 )
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QColor, QFont, QIcon
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QColor, QFont, QIcon, QKeyEvent, QAction, QGuiApplication
 
-from flactoalac.utils import get_ffmpeg_path, format_size, scan_paths_for_flac
+from flactoalac.utils import (
+    get_ffmpeg_path, format_size, scan_paths_for_flac, open_path_in_file_manager
+)
 from flactoalac.converter import ConversionTask, BatchConverterWorker
+
+
+class ErrorDetailDialog(QDialog):
+    """Dialog to display full FFmpeg error logs with copy-to-clipboard support."""
+    def __init__(self, filename: str, error_msg: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Hata Ayrıntısı - {filename}")
+        self.resize(600, 360)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #1C1C1E;
+                color: #FFFFFF;
+            }
+            QTextEdit {
+                background-color: #000000;
+                color: #FF453A;
+                font-family: Menlo, Monaco, "Courier New", monospace;
+                font-size: 12px;
+                border: 1px solid #3A3A3C;
+                border-radius: 6px;
+                padding: 8px;
+            }
+            QPushButton {
+                background-color: #2C2C2E;
+                color: #FFFFFF;
+                border: 1px solid #3A3A3C;
+                border-radius: 6px;
+                padding: 6px 14px;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #3A3A3C;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        info_label = QLabel(f"<b>Dosya:</b> {filename}<br>Dönüştürme sırasında aşağıdaki hata oluştu:")
+        info_label.setStyleSheet("color: #E5E5E7; font-size: 13px;")
+        layout.addWidget(info_label)
+
+        self.text_box = QTextEdit()
+        self.text_box.setReadOnly(True)
+        self.text_box.setText(error_msg)
+        layout.addWidget(self.text_box)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        copy_btn = QPushButton("Panoya Kopyala")
+        copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        copy_btn.clicked.connect(self.copy_to_clipboard)
+        btn_layout.addWidget(copy_btn)
+
+        close_btn = QPushButton("Kapat")
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_btn.clicked.connect(self.accept)
+        btn_layout.addWidget(close_btn)
+
+        layout.addLayout(btn_layout)
+
+    def copy_to_clipboard(self):
+        clipboard = QGuiApplication.clipboard()
+        if clipboard:
+            clipboard.setText(self.text_box.toPlainText())
+            QMessageBox.information(self, "Kopyalandı", "Hata metni panoya kopyalandı.")
 
 
 class DropZoneWidget(QFrame):
@@ -28,14 +99,14 @@ class DropZoneWidget(QFrame):
         self.setObjectName("DropZone")
 
         self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(20, 30, 20, 30)
-        self.layout.setSpacing(10)
+        self.layout.setContentsMargins(20, 24, 20, 24)
+        self.layout.setSpacing(8)
         self.layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Icon / Emoji Label
         self.icon_label = QLabel("🎵")
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.icon_label.setStyleSheet("font-size: 40px; background: transparent;")
+        self.icon_label.setStyleSheet("font-size: 36px; background: transparent;")
         self.layout.addWidget(self.icon_label)
 
         # Main Text
@@ -121,12 +192,16 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Flac to ALAC Converter")
-        self.resize(850, 680)
-        self.setMinimumSize(700, 500)
+        self.resize(880, 700)
+        self.setMinimumSize(720, 520)
+
+        # Allow full window drag-and-drop
+        self.setAcceptDrops(True)
 
         self.ffmpeg_path = get_ffmpeg_path()
         self.file_items: List[Dict[str, any]] = []
         self.worker: BatchConverterWorker = None
+        self.custom_dest_directory = ""
 
         self.init_ui()
         self.apply_dark_theme()
@@ -145,7 +220,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         main_layout = QVBoxLayout(central)
         main_layout.setContentsMargins(18, 18, 18, 18)
-        main_layout.setSpacing(14)
+        main_layout.setSpacing(12)
 
         # Header Title and Subtitle
         header_layout = QHBoxLayout()
@@ -178,11 +253,18 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        self.table.setColumnWidth(0, 240)
+        self.table.setColumnWidth(0, 250)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setAlternatingRowColors(True)
         self.table.setShowGrid(False)
         self.table.verticalHeader().setVisible(False)
+
+        # Enable table drag-and-drop & context menu & double click
+        self.table.setAcceptDrops(True)
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self.show_table_context_menu)
+        self.table.cellDoubleClicked.connect(self.on_table_double_clicked)
         main_layout.addWidget(self.table)
 
         # Options Box
@@ -191,7 +273,7 @@ class MainWindow(QMainWindow):
             QFrame {
                 background-color: #1C1C1E;
                 border-radius: 8px;
-                padding: 6px;
+                padding: 8px 10px;
             }
         """)
         options_layout = QVBoxLayout(options_frame)
@@ -225,7 +307,14 @@ class MainWindow(QMainWindow):
 
         # Checkboxes row
         checks_layout = QHBoxLayout()
-        self.delete_source_chk = QCheckBox("Dönüştürme sonrası orijinal FLAC dosyasını sil")
+
+        self.skip_existing_chk = QCheckBox("Zaten dönüştürülmüşleri atla")
+        self.skip_existing_chk.setChecked(True)
+        self.skip_existing_chk.setToolTip("Hedef konumda geçerli bir .m4a dosyası varsa tekrar dönüştürmez.")
+        checks_layout.addWidget(self.skip_existing_chk)
+
+        checks_layout.addSpacing(16)
+        self.delete_source_chk = QCheckBox("Orijinal FLAC dosyasını sil")
         self.delete_source_chk.setStyleSheet("color: #FF453A; font-weight: 500;")
         self.delete_source_chk.setToolTip("Dönüştürme %100 başarılı olursa orijinal FLAC silinir.")
         checks_layout.addWidget(self.delete_source_chk)
@@ -247,6 +336,8 @@ class MainWindow(QMainWindow):
 
         # Bottom Bar: Stats, Progress Bar, Buttons
         bottom_layout = QHBoxLayout()
+        bottom_layout.setSpacing(10)
+
         self.stats_label = QLabel("Liste boş")
         self.stats_label.setStyleSheet("color: #8E8E93; font-size: 13px;")
         bottom_layout.addWidget(self.stats_label)
@@ -271,6 +362,26 @@ class MainWindow(QMainWindow):
         """)
         bottom_layout.addWidget(self.progress_bar)
 
+        self.open_output_btn = QPushButton("📁 Klasörü Aç")
+        self.open_output_btn.clicked.connect(self.open_output_folder)
+        self.open_output_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.open_output_btn.setToolTip("Çıktı klasörünü Finder'da açar.")
+        self.open_output_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2C2C2E;
+                color: #FFFFFF;
+                border: 1px solid #3A3A3C;
+                border-radius: 7px;
+                padding: 8px 14px;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #3A3A3C;
+                border-color: #0A84FF;
+            }
+        """)
+        bottom_layout.addWidget(self.open_output_btn)
+
         self.clear_btn = QPushButton("Listeyi Temizle")
         self.clear_btn.clicked.connect(self.clear_list)
         self.clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -280,7 +391,7 @@ class MainWindow(QMainWindow):
                 color: #FF453A;
                 border: 1px solid #3A3A3C;
                 border-radius: 7px;
-                padding: 8px 16px;
+                padding: 8px 14px;
                 font-size: 13px;
                 font-weight: 500;
             }
@@ -313,8 +424,6 @@ class MainWindow(QMainWindow):
         """)
         bottom_layout.addWidget(self.start_btn)
         main_layout.addLayout(bottom_layout)
-
-        self.custom_dest_directory = ""
 
     def apply_dark_theme(self):
         self.setStyleSheet("""
@@ -356,7 +465,39 @@ class MainWindow(QMainWindow):
                 color: #FFFFFF;
                 padding: 2px 4px;
             }
+            QMenu {
+                background-color: #252528;
+                color: #FFFFFF;
+                border: 1px solid #3A3A3C;
+                border-radius: 6px;
+                padding: 4px;
+            }
+            QMenu::item {
+                padding: 6px 18px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #0A84FF;
+            }
         """)
+
+    # --- Full Window Drag & Drop Handlers ---
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+            self.drop_zone.set_active_style()
+        else:
+            event.ignore()
+
+    def dragLeaveEvent(self, event):
+        self.drop_zone.set_idle_style()
+
+    def dropEvent(self, event: QDropEvent):
+        self.drop_zone.set_idle_style()
+        urls = event.mimeData().urls()
+        paths = [url.toLocalFile() for url in urls if url.isLocalFile()]
+        if paths:
+            self.add_paths(paths)
 
     def browse_paths(self, folder: bool = False):
         if folder:
@@ -410,7 +551,6 @@ class MainWindow(QMainWindow):
         if self.radio_same_dir.isChecked() or not self.custom_dest_directory:
             return os.path.join(item["dir"], base_name)
         else:
-            # Recreate relative subfolder structure if inside a scanned folder
             rel_dir = os.path.relpath(item["dir"], item["base_dir"])
             if rel_dir and rel_dir != ".":
                 return os.path.join(self.custom_dest_directory, rel_dir, base_name)
@@ -437,6 +577,12 @@ class MainWindow(QMainWindow):
             status_str = item.get("status_str", "Hazır")
             status_item = QTableWidgetItem(status_str)
             status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            if "Tamamlandı" in status_str:
+                status_item.setForeground(QColor("#30D158"))
+            elif "Hata" in status_str:
+                status_item.setForeground(QColor("#FF453A"))
+            elif "Dönüştürülüyor" in status_str:
+                status_item.setForeground(QColor("#0A84FF"))
             self.table.setItem(row, 2, status_item)
 
             # Destination item
@@ -450,6 +596,99 @@ class MainWindow(QMainWindow):
             f"Toplam {len(self.file_items)} dosya ({format_size(total_size)})"
             if self.file_items else "Liste boş"
         )
+
+    # --- Item Removal & Keyboard Events ---
+    def keyPressEvent(self, event: QKeyEvent):
+        if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+            self.remove_selected_rows()
+        else:
+            super().keyPressEvent(event)
+
+    def remove_selected_rows(self):
+        if self.worker and self.worker.isRunning():
+            QMessageBox.warning(self, "Uyarı", "Dönüştürme sürerken listeden dosya silinemez.")
+            return
+
+        selected_rows = sorted(set(idx.row() for idx in self.table.selectedIndexes()), reverse=True)
+        if not selected_rows:
+            return
+
+        for row in selected_rows:
+            if 0 <= row < len(self.file_items):
+                del self.file_items[row]
+
+        self.refresh_table()
+
+    # --- Context Menu ---
+    def show_table_context_menu(self, pos):
+        item = self.table.itemAt(pos)
+        menu = QMenu(self)
+
+        remove_action = QAction("🗑️ Seçilenleri Listeden Kaldır", self)
+        remove_action.triggered.connect(self.remove_selected_rows)
+        menu.addAction(remove_action)
+
+        if item:
+            row = item.row()
+            file_data = self.file_items[row] if row < len(self.file_items) else None
+
+            menu.addSeparator()
+            if file_data:
+                open_source_action = QAction("📂 Kaynak Dosyayı Finder'da Göster", self)
+                open_source_action.triggered.connect(lambda: open_path_in_file_manager(file_data["path"]))
+                menu.addAction(open_source_action)
+
+                if os.path.exists(file_data.get("dest_path", "")):
+                    open_dest_action = QAction("📁 Hedef (.m4a) Dosyasını Finder'da Göster", self)
+                    open_dest_action.triggered.connect(lambda: open_path_in_file_manager(file_data["dest_path"]))
+                    menu.addAction(open_dest_action)
+
+                if "error_details" in file_data:
+                    error_action = QAction("⚠️ Hata Ayrıntısını Gör", self)
+                    error_action.triggered.connect(lambda: self.show_error_dialog(file_data["filename"], file_data["error_details"]))
+                    menu.addAction(error_action)
+
+        menu.addSeparator()
+        clear_action = QAction("🧹 Listeyi Temizle", self)
+        clear_action.triggered.connect(self.clear_list)
+        menu.addAction(clear_action)
+
+        menu.exec(self.table.viewport().mapToGlobal(pos))
+
+    def on_table_double_clicked(self, row: int, col: int):
+        if 0 <= row < len(self.file_items):
+            item = self.file_items[row]
+            if "error_details" in item:
+                self.show_error_dialog(item["filename"], item["error_details"])
+            elif os.path.exists(item.get("dest_path", "")):
+                open_path_in_file_manager(item["dest_path"])
+            else:
+                open_path_in_file_manager(item["path"])
+
+    def show_error_dialog(self, filename: str, error_details: str):
+        dlg = ErrorDetailDialog(filename, error_details, self)
+        dlg.exec()
+
+    def open_output_folder(self):
+        """Opens output folder in Finder."""
+        if self.radio_custom_dir.isChecked() and self.custom_dest_directory and os.path.exists(self.custom_dest_directory):
+            open_path_in_file_manager(self.custom_dest_directory)
+            return
+
+        # Fallback to selected row's output or first file's output
+        selected_rows = [idx.row() for idx in self.table.selectedIndexes()]
+        target_row = selected_rows[0] if selected_rows else 0
+
+        if 0 <= target_row < len(self.file_items):
+            dest_path = self.file_items[target_row].get("dest_path", "")
+            target_dir = os.path.dirname(dest_path) if dest_path else ""
+            if os.path.exists(target_dir):
+                open_path_in_file_manager(target_dir)
+                return
+
+        # Fallback to user's music folder
+        music_dir = os.path.expanduser("~/Music")
+        open_path_in_file_manager(music_dir)
 
     def clear_list(self):
         if self.worker and self.worker.isRunning():
@@ -476,18 +715,27 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Uyarı", "Lütfen önce FLAC dosyası ekleyin.")
             return
 
+        if self.radio_custom_dir.isChecked() and not self.custom_dest_directory:
+            QMessageBox.warning(self, "Klasör Seçilmedi", "Lütfen dönüştürülen dosyaların kaydedileceği klasörü seçin.")
+            return
+
         # Prepare tasks
         delete_source = self.delete_source_chk.isChecked()
+        skip_existing = self.skip_existing_chk.isChecked()
         tasks = []
+
         for index, item in enumerate(self.file_items):
             task = ConversionTask(
                 index=index,
                 source_path=item["path"],
                 dest_path=item["dest_path"],
-                delete_source=delete_source
+                delete_source=delete_source,
+                skip_existing=skip_existing
             )
             tasks.append(task)
             item["status_str"] = "Kuyrukta..."
+            if "error_details" in item:
+                del item["error_details"]
             self.table.item(index, 2).setText("Kuyrukta...")
             self.table.item(index, 2).setForeground(QColor("#8E8E93"))
 
@@ -524,23 +772,30 @@ class MainWindow(QMainWindow):
         self.worker.start()
 
     def on_task_started(self, index: int):
-        self.file_items[index]["status_str"] = "Dönüştürülüyor..."
-        item = self.table.item(index, 2)
-        if item:
-            item.setText("⏳ Dönüştürülüyor")
-            item.setForeground(QColor("#0A84FF"))
+        if 0 <= index < len(self.file_items):
+            self.file_items[index]["status_str"] = "Dönüştürülüyor..."
+            item = self.table.item(index, 2)
+            if item:
+                item.setText("⏳ Dönüştürülüyor")
+                item.setForeground(QColor("#0A84FF"))
 
     def on_task_finished(self, index: int, success: bool, message: str):
+        if not (0 <= index < len(self.file_items)):
+            return
         item = self.table.item(index, 2)
         if not item:
             return
+
         if success:
-            self.file_items[index]["status_str"] = "Tamamlandı"
-            item.setText("✅ Tamamlandı")
+            status_text = "✅ Atlandı" if "Atlandı" in message else "✅ Tamamlandı"
+            self.file_items[index]["status_str"] = status_text
+            item.setText(status_text)
             item.setForeground(QColor("#30D158"))
+            item.setToolTip(message)
         else:
-            self.file_items[index]["status_str"] = message
-            item.setText("❌ Hata")
+            self.file_items[index]["status_str"] = "Hata"
+            self.file_items[index]["error_details"] = message
+            item.setText("❌ Hata (Çift Tıkla)")
             item.setForeground(QColor("#FF453A"))
             item.setToolTip(message)
 
@@ -566,9 +821,15 @@ class MainWindow(QMainWindow):
         """)
         self.clear_btn.setEnabled(True)
 
-        total = success_count + error_count
-        msg = f"Dönüştürme tamamlandı!\nBaşarılı: {success_count}\nHata: {error_count}"
-        if error_count == 0:
-            QMessageBox.information(self, "İşlem Tamamlandı", msg)
-        else:
-            QMessageBox.warning(self, "İşlem Tamamlandı (Hatalarla)", msg)
+        msg = f"Dönüştürme işlemi tamamlandı!\n\nBaşarılı: {success_count}\nHata: {error_count}"
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("İşlem Tamamlandı")
+        msg_box.setText(msg)
+        msg_box.setIcon(QMessageBox.Icon.Information if error_count == 0 else QMessageBox.Icon.Warning)
+
+        open_btn = msg_box.addButton("Klasörü Aç", QMessageBox.ButtonRole.ActionRole)
+        msg_box.addButton("Tamam", QMessageBox.ButtonRole.AcceptRole)
+
+        msg_box.exec()
+        if msg_box.clickedButton() == open_btn:
+            self.open_output_folder()

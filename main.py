@@ -21,6 +21,15 @@ def main():
     app.setApplicationDisplayName("Flac to ALAC Converter")
 
     window = MainWindow()
+
+    # Handle command-line arguments / files opened with app
+    initial_paths = [
+        arg for arg in sys.argv[1:]
+        if not arg.startswith("-") and os.path.exists(arg)
+    ]
+    if initial_paths:
+        window.add_paths(initial_paths)
+
     window.show()
 
     sys.exit(app.exec())

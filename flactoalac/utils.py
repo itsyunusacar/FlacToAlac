@@ -83,3 +83,31 @@ def scan_paths_for_flac(paths: List[str]) -> List[Dict[str, any]]:
                             })
 
     return flac_files
+
+
+def open_path_in_file_manager(path: str):
+    """Opens a file or directory in macOS Finder, Windows Explorer, or Linux file manager."""
+    import sys
+    import subprocess
+
+    if not path or not os.path.exists(path):
+        return
+
+    try:
+        if sys.platform == "darwin":
+            if os.path.isfile(path):
+                subprocess.run(["open", "-R", path])
+            else:
+                subprocess.run(["open", path])
+        elif sys.platform == "win32":
+            if os.path.isfile(path):
+                subprocess.run(["explorer", f"/select,{os.path.normpath(path)}"])
+            else:
+                subprocess.run(["explorer", os.path.normpath(path)])
+        else:
+            # Linux
+            target = os.path.dirname(path) if os.path.isfile(path) else path
+            subprocess.run(["xdg-open", target])
+    except Exception:
+        pass
+
