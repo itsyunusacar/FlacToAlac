@@ -122,12 +122,12 @@ def convert_single_file(
 class BatchConverterWorker(QThread):
     """
     Background worker thread to process conversion tasks concurrently.
-    Supports real-time per-task progress, thread safety, and instant cancellation.
+    Supports real-time per-task progress, thread safety, speed/ETA estimation, and instant cancellation.
     """
     task_started = pyqtSignal(int)                         # index
     task_finished = pyqtSignal(int, bool, str)             # index, success, message
-    overall_progress = pyqtSignal(int, int)                # completed, total
-    all_finished = pyqtSignal(int, int)                    # success_count, error_count
+    overall_progress = pyqtSignal(int, int, str)           # completed, total, stats_str (speed/ETA)
+    all_finished = pyqtSignal(int, int, list)              # success_count, error_count, successful_dest_paths
 
     def __init__(self, tasks: list[ConversionTask], ffmpeg_path: str, max_workers: int = 4):
         super().__init__()
@@ -165,9 +165,9 @@ class BatchConverterWorker(QThread):
     def _is_cancelled_check(self) -> bool:
         return self._is_cancelled
 
-    def _run_single_task(self, task: ConversionTask) -> Tuple[int, bool, str]:
+    def _run_single_task(self, task: ConversionTask) -> Tuple[int, bool, str, str]:
         if self._is_cancelled:
-            return task.index, False, "İptal edildi."
+            return task.index, False, "İptal edildi.", task.dest_path
 
         # Emit task_started only when the worker thread is ACTUALLY starting it
         self.task_started.emit(task.index)
@@ -179,15 +179,18 @@ class BatchConverterWorker(QThread):
             on_proc_ended=self._on_proc_ended,
             is_cancelled_fn=self._is_cancelled_check
         )
-        return task.index, success, msg
+        return task.index, success, msg, task.dest_path
 
     def run(self):
         import concurrent.futures
+        import time
 
         total = len(self.tasks)
         completed = 0
         success_count = 0
         error_count = 0
+        successful_paths = []
+        start_time = time.time()
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             future_to_task = {}
@@ -199,18 +202,38 @@ class BatchConverterWorker(QThread):
 
             for future in concurrent.futures.as_completed(future_to_task):
                 try:
-                    task_index, success, message = future.result()
+                    task_index, success, message, dest_path = future.result()
                 except Exception as exc:
                     task = future_to_task[future]
-                    task_index, success, message = task.index, False, str(exc)
+                    task_index, success, message, dest_path = task.index, False, str(exc), task.dest_path
 
                 if success:
                     success_count += 1
+                    successful_paths.append(dest_path)
                 else:
                     error_count += 1
 
                 self.task_finished.emit(task_index, success, message)
                 completed += 1
-                self.overall_progress.emit(completed, total)
 
-        self.all_finished.emit(success_count, error_count)
+                # Calculate speed and ETA
+                elapsed = time.time() - start_time
+                if elapsed > 0.3 and completed > 0:
+                    speed = completed / elapsed
+                    remaining_items = total - completed
+                    if speed > 0 and remaining_items > 0:
+                        eta_sec = remaining_items / speed
+                        if eta_sec < 60:
+                            eta_str = f"Kalan: ~{eta_sec:.0f} sn"
+                        else:
+                            eta_str = f"Kalan: ~{eta_sec / 60:.1f} dk"
+                        stats_str = f"{speed:.1f} dosya/sn • {eta_str}"
+                    else:
+                        stats_str = f"{speed:.1f} dosya/sn"
+                else:
+                    stats_str = ""
+
+                self.overall_progress.emit(completed, total, stats_str)
+
+        self.all_finished.emit(success_count, error_count, successful_paths)
+

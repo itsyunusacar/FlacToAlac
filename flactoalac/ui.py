@@ -14,7 +14,8 @@ from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QColor, QFont, QIcon, QKeyEvent, QAction, QGuiApplication
 
 from flactoalac.utils import (
-    get_ffmpeg_path, format_size, scan_paths_for_flac, open_path_in_file_manager
+    get_ffmpeg_path, format_size, scan_paths_for_flac, open_path_in_file_manager,
+    add_to_apple_music
 )
 from flactoalac.converter import ConversionTask, BatchConverterWorker
 
@@ -203,6 +204,11 @@ class MainWindow(QMainWindow):
         self.worker: BatchConverterWorker = None
         self.custom_dest_directory = ""
 
+        # Window icon
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icon.png")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+
         self.init_ui()
         self.apply_dark_theme()
 
@@ -318,6 +324,13 @@ class MainWindow(QMainWindow):
         self.delete_source_chk.setStyleSheet("color: #FF453A; font-weight: 500;")
         self.delete_source_chk.setToolTip("Dönüştürme %100 başarılı olursa orijinal FLAC silinir.")
         checks_layout.addWidget(self.delete_source_chk)
+
+        if sys.platform == "darwin":
+            checks_layout.addSpacing(16)
+            self.apple_music_chk = QCheckBox("Apple Music'e aktar")
+            self.apple_music_chk.setChecked(False)
+            self.apple_music_chk.setToolTip("Dönüştürülen parçaları otomatik olarak Apple Music kütüphanenize ekler.")
+            checks_layout.addWidget(self.apple_music_chk)
 
         checks_layout.addSpacing(20)
         workers_label = QLabel("Eşzamanlı İşlem:")
@@ -799,10 +812,14 @@ class MainWindow(QMainWindow):
             item.setForeground(QColor("#FF453A"))
             item.setToolTip(message)
 
-    def on_overall_progress(self, completed: int, total: int):
+    def on_overall_progress(self, completed: int, total: int, stats_str: str = ""):
         self.progress_bar.setValue(completed)
+        if stats_str:
+            self.progress_bar.setFormat(f"%p% ({completed}/{total}) • {stats_str}")
+        else:
+            self.progress_bar.setFormat(f"%p% ({completed}/{total})")
 
-    def on_all_finished(self, success_count: int, error_count: int):
+    def on_all_finished(self, success_count: int, error_count: int, successful_paths: list = None):
         self.start_btn.setText("Dönüştürmeyi Başlat")
         self.start_btn.setEnabled(True)
         self.start_btn.setStyleSheet("""
@@ -821,7 +838,15 @@ class MainWindow(QMainWindow):
         """)
         self.clear_btn.setEnabled(True)
 
+        added_music_count = 0
+        if hasattr(self, 'apple_music_chk') and self.apple_music_chk.isChecked() and successful_paths:
+            if add_to_apple_music(successful_paths):
+                added_music_count = len(successful_paths)
+
         msg = f"Dönüştürme işlemi tamamlandı!\n\nBaşarılı: {success_count}\nHata: {error_count}"
+        if added_music_count > 0:
+            msg += f"\n\n🎵 {added_music_count} parça Apple Music'e aktarıldı."
+
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle("İşlem Tamamlandı")
         msg_box.setText(msg)

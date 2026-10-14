@@ -111,3 +111,27 @@ def open_path_in_file_manager(path: str):
     except Exception:
         pass
 
+
+def add_to_apple_music(paths: List[str]) -> bool:
+    """
+    Imports audio files into Apple Music library on macOS.
+    Returns True if successfully triggered.
+    """
+    import sys
+    import subprocess
+
+    if sys.platform != "darwin" or not paths:
+        return False
+
+    valid_paths = [os.path.abspath(p) for p in paths if os.path.exists(p)]
+    if not valid_paths:
+        return False
+
+    try:
+        # Batch open with Apple Music
+        subprocess.run(["open", "-a", "Music"] + valid_paths, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except Exception:
+        return False
+
+
