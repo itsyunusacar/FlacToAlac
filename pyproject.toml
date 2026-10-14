@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flactoalac"
+version = "1.0.0"
+description = "Modern, lossless FLAC to ALAC (Apple Lossless M4A) audio converter with Drag & Drop GUI."
+readme = "README.md"
+authors = [{ name = "Yunus Acar" }]
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dependencies = [
+    "PyQt6>=6.6.0",
+    "mutagen>=1.47.0",
+    "imageio-ffmpeg>=0.5.0",
+    "Pillow>=10.0.0"
+]
+
+[project.scripts]
+flactoalac = "main:main"
+
+[project.urls]
+Homepage = "https://github.com/yunusacar/FlacToAlac"
+Repository = "https://github.com/yunusacar/FlacToAlac.git"
+"Bug Tracker" = "https://github.com/yunusacar/FlacToAlac/issues"
