@@ -21,6 +21,7 @@
 * **Pencere Geneli Sürükle ve Bırak (Drag & Drop):** Dosyaları veya tüm müzik klasörlerini pencerenin herhangi bir yerine bırakmanız yeterli (iç içe alt klasörleri otomatik tarar).
 * **%100 Bit-Perfect Kayıpsız Dönüşüm:** FLAC'tan ALAC'a geçerken ses kalitesinde en ufak bir kayıp veya yeniden sıkıştırma yaşanmaz.
 * **Albüm Kapağı & Metadata Koruması:** Şarkı adı, sanatçı, albüm, parça sırası ve gömülü yüksek çözünürlüklü albüm kapakları (`covr`) eksiksiz korunur.
+* **Özel Albüm Kapağı Seçimi:** Bilgisayarınızdan istediğiniz görseli (`.jpg`, `.png`, `.webp`) seçip veya sürükleyip tüm parçalara tek tıkla albüm kapağı olarak gömebilirsiniz.
 * **Hızlı Paralel Dönüştürme:** Çok çekirdekli (multi-thread) işlemci desteği, hız göstergesi (`X dosya/sn`) ve kalan süre (ETA) tahmini.
 * **Apple Music Entegrasyonu:** Dönüştürülen parçaları tek tıkla doğrudan macOS Apple Music kütüphanesine aktarma seçeneği.
 * **Zaten Dönüştürülmüşleri Atla (Skip Existing):** Hedef konumda zaten `.m4a` dosyası varsa zaman kaybetmeden atlar.
@@ -60,6 +61,7 @@ Derlenen uygulama `dist/FlacToAlac.app` dizininde hazır olacaktır.
 * **Window-Wide Drag & Drop:** Drop individual `.flac` files or entire album folders directly anywhere on the app.
 * **Zero Quality Loss:** Converts from FLAC to ALAC bit-for-bit losslessly.
 * **Full Metadata & Artwork Retention:** Preserves tags (Title, Artist, Album, Year, Track #) and embedded high-res cover art.
+* **Custom Album Artwork Selection:** Select or drag & drop any image (`.jpg`, `.png`, `.webp`) to embed as album artwork across all converted tracks.
 * **Multi-threaded Batch Processing:** Real-time speed (`files/sec`) and accurate Remaining Time (ETA) estimation.
 * **Apple Music Integration:** Automatically import converted tracks into your macOS Apple Music library.
 * **Skip Existing Files:** Skips tracks that have already been converted to save time on large libraries.
