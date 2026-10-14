@@ -12,6 +12,7 @@ class ConversionTask:
     dest_path: str
     delete_source: bool = False
     skip_existing: bool = False
+    custom_cover_path: Optional[str] = None
 
 def convert_single_file(
     task: ConversionTask,
@@ -108,6 +109,11 @@ def convert_single_file(
     # Verify output file
     if not os.path.exists(task.dest_path) or os.path.getsize(task.dest_path) < 1024:
         return False, "Çıktı dosyası geçersiz veya boş oluşturuldu."
+
+    # Embed custom cover art if provided
+    if task.custom_cover_path and os.path.isfile(task.custom_cover_path):
+        from flactoalac.utils import embed_cover_art_to_m4a
+        embed_cover_art_to_m4a(task.dest_path, task.custom_cover_path)
 
     # Delete source if requested and conversion was verified successful
     if task.delete_source:

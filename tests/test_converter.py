@@ -48,7 +48,30 @@ def test_conversion_end_to_end():
         assert skip_success is True
         assert "Atlandı" in skip_msg
 
-        print("End-to-end conversion & skip_existing tests passed with success!")
+        # 5. Test custom cover art embedding
+        from PIL import Image
+        import mutagen.mp4
+
+        cover_img_path = os.path.join(tmpdir, "cover.jpg")
+        img = Image.new("RGB", (200, 200), color="blue")
+        img.save(cover_img_path, "JPEG")
+
+        m4a_cover_path = os.path.join(tmpdir, "with_cover.m4a")
+        task_cover = ConversionTask(
+            index=1,
+            source_path=flac_path,
+            dest_path=m4a_cover_path,
+            custom_cover_path=cover_img_path
+        )
+        cov_success, cov_msg = convert_single_file(task_cover, ffmpeg)
+        assert cov_success is True
+
+        # Verify covr in m4a
+        m4a = mutagen.mp4.MP4(m4a_cover_path)
+        assert "covr" in m4a, "Cover should be embedded into m4a"
+        assert len(m4a["covr"]) > 0, "Cover atom should not be empty"
+
+        print("End-to-end conversion, skip_existing & custom cover art tests passed with success!")
 
 def test_worker_cancellation():
     app = QCoreApplication([])

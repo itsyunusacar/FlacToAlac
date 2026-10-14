@@ -203,6 +203,7 @@ class MainWindow(QMainWindow):
         self.file_items: List[Dict[str, any]] = []
         self.worker: BatchConverterWorker = None
         self.custom_dest_directory = ""
+        self.custom_cover_path: Optional[str] = None
 
         # Window icon
         icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icon.png")
@@ -310,6 +311,73 @@ class MainWindow(QMainWindow):
         dest_layout.addWidget(self.custom_dest_label)
         dest_layout.addStretch()
         options_layout.addLayout(dest_layout)
+
+        # Album Art Selection Row
+        cover_layout = QHBoxLayout()
+        cover_layout.setSpacing(10)
+
+        self.cover_preview_label = QLabel("🖼️")
+        self.cover_preview_label.setFixedSize(40, 40)
+        self.cover_preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.cover_preview_label.setStyleSheet("""
+            QLabel {
+                background-color: #2C2C2E;
+                border: 1px solid #3A3A3C;
+                border-radius: 6px;
+                font-size: 18px;
+            }
+        """)
+        cover_layout.addWidget(self.cover_preview_label)
+
+        cover_text_box = QVBoxLayout()
+        cover_text_box.setSpacing(2)
+        self.cover_title_label = QLabel("Albüm Kapağı (Opsiyonel):")
+        self.cover_title_label.setStyleSheet("font-weight: bold; color: #E5E5E7; font-size: 13px;")
+        self.cover_desc_label = QLabel("Orijinal gömülü kapak korunur • Görsel seçebilir veya sürükleyebilirsiniz")
+        self.cover_desc_label.setStyleSheet("color: #8E8E93; font-size: 11px;")
+        cover_text_box.addWidget(self.cover_title_label)
+        cover_text_box.addWidget(self.cover_desc_label)
+        cover_layout.addLayout(cover_text_box)
+
+        self.choose_cover_btn = QPushButton("Kapak Seç...")
+        self.choose_cover_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.choose_cover_btn.clicked.connect(self.choose_custom_cover_file)
+        self.choose_cover_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2C2C2E;
+                color: #FFFFFF;
+                border: 1px solid #3A3A3C;
+                border-radius: 6px;
+                padding: 5px 12px;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #3A3A3C;
+                border-color: #0A84FF;
+            }
+        """)
+        cover_layout.addWidget(self.choose_cover_btn)
+
+        self.remove_cover_btn = QPushButton("✕ Kaldır")
+        self.remove_cover_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.remove_cover_btn.setVisible(False)
+        self.remove_cover_btn.clicked.connect(self.remove_custom_cover)
+        self.remove_cover_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2C2C2E;
+                color: #FF453A;
+                border: 1px solid #3A3A3C;
+                border-radius: 6px;
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #3A3A3C;
+            }
+        """)
+        cover_layout.addWidget(self.remove_cover_btn)
+        cover_layout.addStretch()
+        options_layout.addLayout(cover_layout)
 
         # Checkboxes row
         checks_layout = QHBoxLayout()
@@ -512,6 +580,46 @@ class MainWindow(QMainWindow):
         if paths:
             self.add_paths(paths)
 
+    def choose_custom_cover_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Albüm Kapak Görselini Seçin",
+            "",
+            "Görsel Dosyaları (*.jpg *.jpeg *.png *.webp *.bmp)"
+        )
+        if file_path:
+            self.set_custom_cover(file_path)
+
+    def set_custom_cover(self, image_path: str):
+        if not os.path.isfile(image_path):
+            return
+        self.custom_cover_path = image_path
+        filename = os.path.basename(image_path)
+        self.cover_title_label.setText(f"Özel Kapak: {filename}")
+        self.cover_desc_label.setText("Tüm dönüştürülen parçalara bu kapak gömülecek")
+        self.cover_desc_label.setStyleSheet("color: #30D158; font-size: 11px;")
+        self.remove_cover_btn.setVisible(True)
+
+        from PyQt6.QtGui import QPixmap
+        pixmap = QPixmap(image_path)
+        if not pixmap.isNull():
+            scaled = pixmap.scaled(
+                40, 40,
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            self.cover_preview_label.setPixmap(scaled)
+        else:
+            self.cover_preview_label.setText("🖼️")
+
+    def remove_custom_cover(self):
+        self.custom_cover_path = None
+        self.cover_preview_label.setText("🖼️")
+        self.cover_title_label.setText("Albüm Kapağı (Opsiyonel):")
+        self.cover_desc_label.setText("Orijinal gömülü kapak korunur • Görsel seçebilir veya sürükleyebilirsiniz")
+        self.cover_desc_label.setStyleSheet("color: #8E8E93; font-size: 11px;")
+        self.remove_cover_btn.setVisible(False)
+
     def browse_paths(self, folder: bool = False):
         if folder:
             dir_path = QFileDialog.getExistingDirectory(self, "FLAC İçeren Klasörü Seçin")
@@ -525,9 +633,23 @@ class MainWindow(QMainWindow):
                 self.add_paths(files)
 
     def add_paths(self, paths: List[str]):
-        new_items = scan_paths_for_flac(paths)
+        # Separate images from audio/folders
+        image_extensions = ('.jpg', '.jpeg', '.png', '.webp', '.bmp')
+        image_files = [p for p in paths if os.path.isfile(p) and p.lower().endswith(image_extensions)]
+        audio_or_dirs = [p for p in paths if p not in image_files]
+
+        if image_files:
+            # Set the first image as custom cover
+            self.set_custom_cover(image_files[0])
+
+        if not audio_or_dirs and image_files:
+            # Only images were dropped
+            return
+
+        new_items = scan_paths_for_flac(audio_or_dirs)
         if not new_items:
-            QMessageBox.information(self, "Bilgi", "Seçilen konumda .flac dosyası bulunamadı.")
+            if not image_files:
+                QMessageBox.information(self, "Bilgi", "Seçilen konumda .flac dosyası bulunamadı.")
             return
 
         existing_paths = {item["path"] for item in self.file_items}
@@ -743,7 +865,8 @@ class MainWindow(QMainWindow):
                 source_path=item["path"],
                 dest_path=item["dest_path"],
                 delete_source=delete_source,
-                skip_existing=skip_existing
+                skip_existing=skip_existing,
+                custom_cover_path=self.custom_cover_path
             )
             tasks.append(task)
             item["status_str"] = "Kuyrukta..."

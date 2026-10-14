@@ -135,3 +135,43 @@ def add_to_apple_music(paths: List[str]) -> bool:
         return False
 
 
+def embed_cover_art_to_m4a(m4a_path: str, image_path: str) -> bool:
+    """
+    Embeds a custom image as album artwork into an M4A file (covr atom).
+    Supports JPG, PNG, WEBP, BMP, etc.
+    """
+    if not os.path.isfile(m4a_path) or not os.path.isfile(image_path):
+        return False
+
+    try:
+        from PIL import Image
+        import io
+        from mutagen.mp4 import MP4, MP4Cover
+
+        ext = os.path.splitext(image_path)[1].lower()
+        if ext in ('.jpg', '.jpeg'):
+            with open(image_path, 'rb') as f:
+                data = f.read()
+            fmt = MP4Cover.FORMAT_JPEG
+        elif ext == '.png':
+            with open(image_path, 'rb') as f:
+                data = f.read()
+            fmt = MP4Cover.FORMAT_PNG
+        else:
+            # Convert non-standard image types (e.g. WEBP, BMP) to JPEG in memory
+            with Image.open(image_path) as img:
+                rgb_img = img.convert("RGB")
+                buf = io.BytesIO()
+                rgb_img.save(buf, format="JPEG", quality=95)
+                data = buf.getvalue()
+            fmt = MP4Cover.FORMAT_JPEG
+
+        audio = MP4(m4a_path)
+        audio['covr'] = [MP4Cover(data, imageformat=fmt)]
+        audio.save()
+        return True
+    except Exception:
+        return False
+
+
+
